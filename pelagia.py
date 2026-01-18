@@ -91,10 +91,40 @@ def render_mermaid_blocks(
                     mermaid_src,
                     flags=re.MULTILINE,
                 )
-            # Fix common mermaid syntax issues: replace \n in node labels with <br/>
-            # This handles cases like: M[Memory stream\n(observations, plans)]
+            # Fix common mermaid syntax issues:
+            # 1. Replace \n in node labels with space (Mermaid doesn't support line breaks)
             mermaid_src = re.sub(
-                r"\[([^\]]*)\\n([^\]]*)\]", r"[\1<br/>\2]", mermaid_src
+                r"\\n\s*\(", r" (", mermaid_src
+            )  # \n( -> space(
+            mermaid_src = re.sub(r"\\n", " ", mermaid_src)  # other \n -> space
+
+            # 2. Quote edge labels containing parentheses: -->|text (parens)| -> -->|"text (parens)"|
+            def quote_edge_label(match):
+                arrow = match.group(1)  # -->, --, etc.
+                label = match.group(2)  # content between |
+                if label.startswith('"') or not ("(" in label or ")" in label):
+                    return match.group(0)
+                return f'{arrow}|"{label}"|'
+
+            mermaid_src = re.sub(
+                r"(--+[->]?)\|([^|]+)\|", quote_edge_label, mermaid_src
+            )
+
+            # 3. Quote node labels containing parentheses: ID[text (parens)] -> ID["text (parens)"]
+            def quote_node_label(match):
+                prefix = match.group(1)  # ID or empty
+                label = match.group(2)  # content inside []
+                # Skip if already quoted
+                if label.startswith('"'):
+                    return match.group(0)
+                # Quote if contains parentheses
+                if "(" in label or ")" in label:
+                    return f'{prefix}["{label}"]'
+                return match.group(0)
+
+            # Match: optional ID followed by [content]
+            mermaid_src = re.sub(
+                r"(\w+)?\[([^\]]+)\]", quote_node_label, mermaid_src
             )
             mermaid_hash = hashlib.sha1(
                 mermaid_src.encode("utf-8")
@@ -190,34 +220,67 @@ def add_ids_and_rewrite_links(
             path_part, frag = split_link_target(target)
             path_part = path_part.strip()
 
+            # Skip empty paths or pure anchors
             if path_part == "" or path_part.startswith("#"):
                 return match.group(0)
 
-            resolved_rel: str | None = None
-            if not Path(path_part).is_absolute():
+            # Only process markdown file links
+            if not path_part.lower().endswith((".md", ".markdown")):
+                return match.group(0)
+
+            # Normalize path separators
+            path_part_normalized = path_part.replace("\\", "/")
+
+            # Try multiple strategies to find the matching file:
+            # 1. Direct match (path is already relative to folder root)
+            linked_slug = file_slug_by_md_rel.get(path_part_normalized)
+
+            # 2. Try resolving relative to current file
+            if not linked_slug and not Path(path_part).is_absolute():
                 try:
                     resolved = (current_file.parent / path_part).resolve()
-                    resolved_rel = resolved.relative_to(
-                        folder_root.resolve()
-                    ).as_posix()
+                    # Check if resolved path is within folder_root
+                    try:
+                        resolved_rel = resolved.relative_to(
+                            folder_root.resolve()
+                        ).as_posix()
+                        linked_slug = file_slug_by_md_rel.get(resolved_rel)
+                    except ValueError:
+                        # Resolved path is outside folder_root, skip
+                        pass
                 except Exception:
-                    resolved_rel = None
+                    pass
 
-            if path_part.lower().endswith((".md", ".markdown")):
-                rel = resolved_rel or path_part.replace("\\", "/")
-                linked_slug = file_slug_by_md_rel.get(rel)
-                if linked_slug:
-                    if frag:
-                        frag_id = slugify(frag)
-                        return f"[{label}](#{linked_slug}-{frag_id})"
-                    return f"[{label}](#{linked_slug})"
+            # 3. Try with folder name prefix removed (handle cases like "thinking/file.md")
+            if not linked_slug:
+                # Remove leading folder name if it matches the folder name
+                folder_name = folder_root.name
+                if path_part_normalized.startswith(f"{folder_name}/"):
+                    without_prefix = path_part_normalized[
+                        len(folder_name) + 1 :
+                    ]
+                    linked_slug = file_slug_by_md_rel.get(without_prefix)
 
-            if resolved_rel and not looks_like_url(target):
-                new_target = resolved_rel
+            # 4. Try just the filename if path has slashes
+            if not linked_slug and "/" in path_part_normalized:
+                filename = Path(path_part_normalized).name
+                # Check if there's exactly one file with this name
+                matching_files = [
+                    rel
+                    for rel in file_slug_by_md_rel.keys()
+                    if Path(rel).name == filename
+                ]
+                if len(matching_files) == 1:
+                    linked_slug = file_slug_by_md_rel.get(matching_files[0])
+
+            # Convert to internal PDF link if we found a match
+            if linked_slug:
                 if frag:
-                    new_target = f"{new_target}#{frag}"
-                return f"[{label}]({new_target})"
+                    frag_id = slugify(frag)
+                    return f"[{label}](#{linked_slug}-{frag_id})"
+                return f"[{label}](#{linked_slug})"
 
+            # No match found, return original link
             return match.group(0)
 
         return MD_LINK_RE.sub(repl, text)
