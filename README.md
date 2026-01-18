@@ -1,5 +1,7 @@
 # Pelagia
 
+<img width="2752" height="1536" alt="Gemini_Generated_Image_d60ndnd60ndnd60n" src="https://github.com/user-attachments/assets/f2aa81c9-9d06-4619-adc1-71e40f1e1bde" />
+
 **Pelagia** (from Greek *pelagos*, meaning "sea") — A tool that gathers multiple Markdown files into a single PDF document, like streams flowing into the ocean.
 
 This project provides a simple script that converts a folder of Markdown files into a **single PDF** with:
@@ -9,7 +11,9 @@ This project provides a simple script that converts a folder of Markdown files i
 - Internal links between files preserved as PDF links
 - A page break between each file
 
-It works on macOS and is designed to be easy to run from anywhere later (e.g., add to your `PATH`).
+It works on macOS and is designed to be easy to run from anywhere later (e.g., add to your `PATH`).  
+
+https://github.com/user-attachments/assets/53c07e79-7038-4ec0-8a44-54bbaf19e77e
 
 ## Step-by-step setup (macOS)
 
