@@ -18,34 +18,34 @@ https://github.com/user-attachments/assets/53c07e79-7038-4ec0-8a44-54bbaf19e77e
 ## Step-by-step setup (macOS)
 
 1) Install dependencies (one-time):
-```
+```bash
 brew install pandoc tectonic node
 npm i -g @mermaid-js/mermaid-cli
 ```
 
 2) Make the script executable:
-```
+```bash
 chmod +x pelagia.py
 ```
 
 3) Run it:
-```
+```bash
 ./pelagia.py /path/to/folder --start README.md --out /path/to/output.pdf
 ```
 
 Optional title:
-```
+```bash
 ./pelagia.py /path/to/folder --start README.md --out /path/to/output.pdf --title "My Docs"
 ```
 
 Smaller diagrams or horizontal flow:
-```
+```bash
 ./pelagia.py /path/to/folder --start README.md --out /path/to/output.pdf \
   --mermaid-scale 0.8 --mermaid-flow-direction LR
 ```
 
 You can also control diagram size directly:
-```
+```bash
 ./pelagia.py /path/to/folder --start README.md --out /path/to/output.pdf \
   --mermaid-width 640 --mermaid-height 480
 ```
@@ -68,11 +68,11 @@ You can also control diagram size directly:
 ## Troubleshooting
 
 - If Mermaid rendering fails, verify `mmdc` is on your PATH:
-```
+```bash
 which mmdc
 ```
 - If PDF generation fails, verify Pandoc and Tectonic:
-```
+```bash
 which pandoc
 which tectonic
 ```
