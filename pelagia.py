@@ -13,6 +13,7 @@ MERMAID_FENCE_RE = re.compile(r"^```mermaid\s*$", re.IGNORECASE)
 FENCE_END_RE = re.compile(r"^```\s*$")
 MD_LINK_RE = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
 ATX_HEADING_RE = re.compile(r"^(#{1,6})\s+(.+?)\s*$")
+LIST_ITEM_RE = re.compile(r"^(\s*)([-*+]|[0-9]+\.)\s+")
 
 
 def die(msg: str, code: int = 2) -> None:
@@ -181,6 +182,35 @@ def render_mermaid_blocks(
         i += 1
 
     return "\n".join(out_lines) + "\n"
+
+
+def tighten_lists(md_text: str) -> str:
+    lines = md_text.splitlines()
+    out: List[str] = []
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        if line.strip() == "":
+            prev = out[-1] if out else ""
+            # Find the next non-empty line
+            j = i + 1
+            while j < len(lines) and lines[j].strip() == "":
+                j += 1
+            next_line = lines[j] if j < len(lines) else ""
+
+            prev_match = LIST_ITEM_RE.match(prev)
+            next_match = LIST_ITEM_RE.match(next_line)
+
+            # If blank line is between list items at the same indent, drop it
+            if prev_match and next_match:
+                if prev_match.group(1) == next_match.group(1):
+                    i += 1
+                    continue
+
+        out.append(line)
+        i += 1
+
+    return "\n".join(out) + "\n"
 
 
 def add_ids_and_rewrite_links(
@@ -410,6 +440,7 @@ def main() -> None:
                 folder,
                 md_path,
             )
+            text = tighten_lists(text)
 
             if idx > 0:
                 parts.append("\n```{=latex}\n\\newpage\n```\n")
@@ -421,6 +452,8 @@ def main() -> None:
 
         header_tex = tmpdir / "header.tex"
         header_tex.write_text(
+            "\\usepackage{enumitem}\n"
+            "\\setlist{topsep=0pt,itemsep=-0.6ex,parsep=0pt,partopsep=0pt}\n"
             "\\let\\oldtableofcontents\\tableofcontents\n"
             "\\renewcommand{\\tableofcontents}{%\n"
             "  \\oldtableofcontents\n"
@@ -432,6 +465,7 @@ def main() -> None:
         cmd = [
             "pandoc",
             str(combined_md),
+            "--from=markdown+hard_line_breaks",
             "--pdf-engine=tectonic",
             f"--resource-path={resource_path}",
             "--toc",
