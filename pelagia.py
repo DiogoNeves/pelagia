@@ -453,7 +453,12 @@ def main() -> None:
         header_tex = tmpdir / "header.tex"
         header_tex.write_text(
             "\\usepackage{enumitem}\n"
-            "\\setlist{topsep=0pt,itemsep=-0.6ex,parsep=0pt,partopsep=0pt}\n"
+            "\\let\\tightlist\\relax\n"
+            "\\sloppy\n"
+            "\\setlist[itemize,1]{itemsep=0.2ex,topsep=0pt,parsep=0pt,partopsep=0pt}\n"
+            "\\setlist[itemize,2]{itemsep=0.15ex,topsep=0pt,parsep=0pt,partopsep=0pt}\n"
+            "\\setlist[enumerate,1]{itemsep=0.2ex,topsep=0pt,parsep=0pt,partopsep=0pt}\n"
+            "\\setlist[enumerate,2]{itemsep=0.15ex,topsep=0pt,parsep=0pt,partopsep=0pt}\n"
             "\\let\\oldtableofcontents\\tableofcontents\n"
             "\\renewcommand{\\tableofcontents}{%\n"
             "  \\oldtableofcontents\n"
